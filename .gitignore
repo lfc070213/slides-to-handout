@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+
+# 构建产物（可由 README「复现示例」一节重新生成）
+examples/pages/
+examples/示例课件.pdf
+examples/示例_详细讲义.html

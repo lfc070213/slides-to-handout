@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lecture Notes 课件讲义"
+  short_description: "把 PPT/PDF 课件转换成图文并茂的详细讲义：逐页原图对照 + LaTeX 公式推导，输出 HTML 与 PDF"
+  default_prompt: "使用 $lecture-notes 把这份课件转换成详细的图文讲义，每页附原幻灯片对照并补公式推导"
