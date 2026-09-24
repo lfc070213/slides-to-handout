@@ -7,6 +7,8 @@
   * matplotlib 按 RENDER_DPI(=200) 出图，而 CSS px 与 pt 是 96dpi 口径，
     所以图片像素要乘 96/DPI 才是正确的 CSS 宽度；否则行内公式会大约 2 倍。
   * 分页控制只加在小块（.slide-block：标题+原页图）上，大块加 avoid 会出现大片空白。
+  * build() 默认 flatten=True：写出 PDF 后就地把文字转成矢量轮廓，只留一个
+    到处都能正确渲染的版本（细节见 build 的 docstring）。
 
 用法：
     import noteskit as nk
@@ -425,8 +427,15 @@ HTML_HEAD = r"""<!DOCTYPE html>
 HTML_TAIL = "</body>\n</html>\n"
 
 
-def build(parts, output_html, output_pdf, title=None, running_head=None):
-    """拼 HTML → 写文件 → weasyprint 出 PDF → 打印页数/体积。
+def build(parts, output_html, output_pdf, title=None, running_head=None, flatten=True):
+    """拼 HTML → 写文件 → weasyprint 出 PDF → 轮廓化 → 打印页数/体积/字体数。
+
+    默认 flatten=True：把 PDF 文字转成矢量轮廓后再写出（只留一个交付版本）。
+    为什么默认轮廓化：weasyprint 的 PDF 是子集化字体 + Identity-H 编码，正文流里
+    存的是 glyph ID；多数阅读器按规范查回字形，但部分手机/微信/网盘预览会跳过
+    字体表、把 glyph ID 当码位画出来（字母整体右移、中文空白）。轮廓化后页面里
+    没有字体，这类阅读器也无从出错。代价是文字不可选中/搜索/复制——确实需要
+    可搜索版本时传 flatten=False（并在交付说明里讲清）。
 
     编码策略（跨平台通用）：
       * 代码/脚本/SKILL.md 一律 UTF-8 无 BOM——带 BOM 会顶掉 shell 的 shebang、
@@ -451,6 +460,18 @@ def build(parts, output_html, output_pdf, title=None, running_head=None):
 
     from weasyprint import HTML as WP_HTML
     WP_HTML(filename=output_html).write_pdf(output_pdf)
+
+    outlined = ""
+    if flatten:
+        import sys as _sys
+        if HERE not in _sys.path:                # flatten_pdf 与本文件同目录
+            _sys.path.insert(0, HERE)
+        import flatten_pdf as _flatten_pdf
+        tmp_pdf = output_pdf + ".outlining.tmp"
+        _flatten_pdf.flatten(output_pdf, tmp_pdf)
+        os.replace(tmp_pdf, output_pdf)          # 就地替换，只留最终版本
+        outlined = f"，已轮廓化（剩余字体数 {_flatten_pdf.count_fonts(output_pdf)}，应为 0）"
+
     size_mb = os.path.getsize(output_pdf) / 1024 / 1024
     pages = ""
     try:
@@ -458,5 +479,5 @@ def build(parts, output_html, output_pdf, title=None, running_head=None):
         pages = f"，{pymupdf.open(output_pdf).page_count} 页"
     except Exception:
         pass
-    print(f"PDF: {output_pdf} ({size_mb:.1f} MB{pages})")
+    print(f"PDF: {output_pdf} ({size_mb:.1f} MB{pages}{outlined})")
     return output_pdf

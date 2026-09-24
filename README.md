@@ -12,7 +12,7 @@
 
 ![讲义例题页：原幻灯片对照 + 分步代入 + 结论公式](examples/preview/page_008.png)
 
-完整产出在 [`examples/`](examples/)：`示例_详细讲义.pdf`（可搜索）+ `示例_详细讲义_手机版.pdf`（到处能开）。
+完整产出在 [`examples/`](examples/)：`示例_详细讲义.pdf`（唯一交付版本，文字已转矢量轮廓，任何阅读器都不会乱码）。
 
 ## 为什么需要它
 
@@ -23,7 +23,7 @@
 - **绝不凭记忆写**：先逐页转写课件的真实内容（数字、人名、公式记号），再动笔，每个数字都能在源页里指出来；
 - **公式一律 LaTeX 渲染**成图片，不接受纯文本/Unicode 公式；
 - **每一页都贴原幻灯片**（82% 宽，宽窄都试过），读者不用来回切换文件；
-- **交付两个 PDF**：可搜索的电脑版 + 文字转矢量轮廓的手机版（微信/手机阅读器不会乱码）。
+- **默认只交付一个 PDF**：文字转成矢量轮廓，微信/手机/网盘阅读器都不会乱码；代价是不可选中/搜索（需要搜索时 `build(..., flatten=False)`）。
 
 ## 安装
 
@@ -60,14 +60,11 @@ bash scripts/slides_to_pages.sh 课件.pptx 输出目录
 
 # 2. 写内容脚本 gen_课件名_pdf.py（见 examples/gen_示例课件_pdf.py 模板）
 
-# 3. 构建 HTML + PDF
+# 3. 构建 HTML + PDF（PDF 默认就地轮廓化，只产出这一个版本）
 python3 gen_课件名_pdf.py
 
 # 4. 渲染指定页成 PNG，肉眼看排版（这一步不能省）
 python3 scripts/preview_pdf.py 讲义.pdf 1 5 20 40
-
-# 5. 出"到处都能打开"的轮廓版
-python3 scripts/flatten_pdf.py 讲义.pdf 讲义_手机版.pdf
 ```
 
 ## 五步流水线
@@ -79,7 +76,7 @@ python3 scripts/flatten_pdf.py 讲义.pdf 讲义_手机版.pdf
 | 2. 写内容脚本 | `gen_*.py` 调 `noteskit` | 每页固定写法：`slide(页码, 标题)` + 讲解 + `deriv()` + `formula_boxed()` |
 | 3. 构建 | `nk.build(...)` | 公式渲染成 PNG 内嵌 HTML，WeasyPrint 排版出 PDF |
 | 4. 验证 | `preview_pdf.py` + 看图 | 必须真的看图：公式大小、超宽截断、孤行标题、半页空白 |
-| 5. 轮廓版 | `flatten_pdf.py` | 文字转矢量轮廓，字体数必须为 0；代价是不可搜索，所以两个版本一起交付 |
+| 5. 轮廓化 | `build()` 默认内置 | PDF 写出后就地把文字转矢量轮廓，字体数必须为 0；代价是不可搜索，需要搜索时 `flatten=False` |
 
 ## noteskit API 速查
 
@@ -95,7 +92,7 @@ python3 scripts/flatten_pdf.py 讲义.pdf 讲义_手机版.pdf
 | `deriv(标题, [步骤…])` | 蓝底推导块；步骤可写字符串或 `(标签, 内容)` |
 | `p / note / bullets / table / divider / chart / img` | 正文段落、提示框、列表、表格、分隔线、图表占位、图片占位 |
 | `cover / toc / part_title / section` | 封面、目录、部分扉页、小节标题 |
-| `build(parts, html, pdf, title=, running_head=)` | 拼 HTML → WeasyPrint 出 PDF → 打印页数体积 |
+| `build(parts, html, pdf, title=, running_head=, flatten=True)` | 拼 HTML → WeasyPrint 出 PDF → 轮廓化 → 打印页数/体积/剩余字体数 |
 
 > `chart / img` 是占位组件：原课件里的图表若不导出，就在讲义里写清"这张图画的是什么、说明什么"，不留空白。
 
@@ -113,7 +110,7 @@ python3 scripts/flatten_pdf.py 讲义.pdf 讲义_手机版.pdf
 
 - 代码/脚本/SKILL.md 用 **UTF-8 无 BOM**（带 BOM 会顶掉 shebang）；给"任何地方"打开的 HTML 用 **UTF-8 带 BOM**（`noteskit.build()` 已处理）。
 - 正文与装饰**不用 emoji**（依赖 emoji 字体，换平台会变方块），只用 GB2312 内的符号 `※ 【】 ▲ ·`。
-- WeasyPrint 的 PDF 用子集化字体 + Identity-H 编码，**部分手机/微信/网盘阅读器会误读成乱码**——这不是文件坏了，是查看器的锅。用第 5 步的轮廓版兜住，两个版本一起交付。
+- WeasyPrint 的 PDF 用子集化字体 + Identity-H 编码，**部分手机/微信/网盘阅读器会误读成乱码**——这不是文件坏了，是查看器的锅。交付的 PDF 默认已轮廓化（第 5 步），从根上避开这个问题。
 
 ## 仓库结构
 
@@ -126,12 +123,12 @@ slides-to-handout/
 │   ├── noteskit.py             # 讲义构建工具包（公式渲染 / 版式积木 / 页面骨架）
 │   ├── slides_to_pages.sh      # 课件 → 每页 PNG/JPG
 │   ├── preview_pdf.py          # PDF 指定页 → PNG（肉眼检查排版）
-│   └── flatten_pdf.py          # 文字转矢量轮廓，出手机版
+│   └── flatten_pdf.py          # 文字转矢量轮廓（build() 默认调用它）
 └── examples/                   # 完整可复现示例（5 页课件 → 9 页讲义）
     ├── make_demo_deck.py       # 生成示例课件.pptx
     ├── gen_示例课件_pdf.py      # 讲义内容脚本（noteskit 全部用法的起手模板）
     ├── 示例课件.pptx
-    ├── 示例_详细讲义.pdf / _手机版.pdf
+    ├── 示例_详细讲义.pdf        # 唯一交付版本（已轮廓化）
     └── preview/                # README 用的页面截图
 ```
 
@@ -141,9 +138,8 @@ slides-to-handout/
 cd examples
 python3 make_demo_deck.py                              # 生成 示例课件.pptx
 ../scripts/slides_to_pages.sh 示例课件.pptx .           # 每页图片 → pages/
-python3 gen_示例课件_pdf.py                             # 出 HTML + PDF
+python3 gen_示例课件_pdf.py                             # 出 HTML + 轮廓化后的 PDF
 ../scripts/preview_pdf.py 示例_详细讲义.pdf --all        # 看排版
-../scripts/flatten_pdf.py 示例_详细讲义.pdf 示例_详细讲义_手机版.pdf
 ```
 
 ## 许可
